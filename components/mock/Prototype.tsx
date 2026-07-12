@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import EventScreen from "./EventScreen";
 import AnswerScreen, { type Variant } from "./AnswerScreen";
-import type { Answers, AnswerStatus } from "./data";
+import { makeTimes, type Answers, type AnswerStatus } from "./data";
 
 const VARIANTS: { key: Variant; id: string; name: string }[] = [
   { key: "a", id: "1a", name: "記号グリッド" },
@@ -19,6 +19,8 @@ const VARIANTS: { key: Variant; id: string; name: string }[] = [
 export default function Prototype() {
   const [screen, setScreen] = useState<"event" | "answer">("event");
   const [variant, setVariant] = useState<Variant>("a");
+  const [step, setStep] = useState<60 | 30>(60);
+  const times = useMemo(() => makeTimes(step), [step]);
   const [mode, setMode] = useState<AnswerStatus>("ok");
   const [day, setDay] = useState(0);
   const [answers, setAnswers] = useState<Answers>({});
@@ -47,10 +49,36 @@ export default function Prototype() {
             {v.id} {v.name}
           </button>
         ))}
+        {/* スクロール検証用:刻み幅を変えて行数を切り替える(切替時は回答リセット) */}
+        <div className="ml-auto flex items-center gap-1">
+          {([60, 30] as const).map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => {
+                if (s === step) return;
+                setStep(s);
+                setAnswers({});
+                setSavedAnswers({});
+                setSubmitted(false);
+                setDay(0);
+              }}
+              className="rounded-md px-2 py-1 text-[11px] font-semibold"
+              style={
+                step === s
+                  ? { background: "#2563eb", color: "#fff" }
+                  : { background: "rgba(255,255,255,.1)", color: "rgba(255,255,255,.7)" }
+              }
+            >
+              {s}分
+            </button>
+          ))}
+        </div>
       </div>
 
       {screen === "event" ? (
         <EventScreen
+          times={times}
           submitted={submitted}
           savedAnswers={savedAnswers}
           onGoAnswer={() => {
@@ -61,6 +89,7 @@ export default function Prototype() {
       ) : (
         <AnswerScreen
           variant={variant}
+          times={times}
           mode={mode}
           onModeChange={setMode}
           day={day}

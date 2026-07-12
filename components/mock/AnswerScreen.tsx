@@ -1,14 +1,13 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties, type Dispatch, type SetStateAction } from "react";
 import {
-  DAYS,
-  TIMES,
-  GLYPH,
-  type Answers,
-  type AnswerStatus,
-  slotKey,
-} from "./data";
+  useEffect,
+  useRef,
+  type CSSProperties,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
+import { DAYS, GLYPH, type Answers, type AnswerStatus, slotKey } from "./data";
 
 /** 回答グリッドの3案(1a 記号グリッド / 1b ペイント式 / 1c 1日ずつ入力) */
 export type Variant = "a" | "b" | "c";
@@ -69,6 +68,7 @@ function rowStyleC(status: AnswerStatus): CSSProperties {
 
 type Props = {
   variant: Variant;
+  times: string[];
   mode: AnswerStatus;
   onModeChange: (mode: AnswerStatus) => void;
   day: number;
@@ -82,9 +82,16 @@ type Props = {
 /**
  * 回答画面(spec §2.4)。モードを選んでタップ / なぞり(ドラッグ)で一括塗り。
  * 日付・時刻ヘッダーのタップで行・列一括。未入力は×扱い。
+ *
+ * セル上は touch-action: none のためドラッグ中に画面がスクロールしない。
+ * 行数が増えた場合のスクロール手段として以下を用意する(spec §2.4):
+ * - グリッド右端のスクロールバー(なぞると通常スクロール)
+ * - 時刻ヘッダー列(タップ=行一括塗り、なぞる=スクロール)
+ * - 2本指スクロール(セル上でも可)
  */
 export default function AnswerScreen({
   variant,
+  times,
   mode,
   onModeChange,
   day,
@@ -94,11 +101,16 @@ export default function AnswerScreen({
   onBack,
   onSubmit,
 }: Props) {
+  const scrollRef = useRef<HTMLDivElement>(null);
   const paintingRef = useRef(false);
+  const pointersRef = useRef(new Map<number, { x: number; y: number }>());
+  const railDragRef = useRef<number | null>(null); // マウスでスクロールバーを掴んだ位置
 
   useEffect(() => {
     const up = () => {
       paintingRef.current = false;
+      pointersRef.current.clear();
+      railDragRef.current = null;
     };
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
@@ -127,23 +139,75 @@ export default function AnswerScreen({
   const status = (slot: string): AnswerStatus => answers[slot] ?? "none";
 
   const handleCellDown = (e: React.PointerEvent, slot: string) => {
+    // 2本目以降の指はスクロール用なので塗らない
+    if (pointersRef.current.size >= 1) return;
     e.preventDefault();
     paintingRef.current = true;
     paint(slot);
   };
 
-  // タッチはpointerdownしたセルに暗黙キャプチャされるため、座標からセルを特定する
+  const handleWrapperDown = (e: React.PointerEvent) => {
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointersRef.current.size >= 2) paintingRef.current = false;
+  };
+
+  const handleWrapperEnd = (e: React.PointerEvent) => {
+    pointersRef.current.delete(e.pointerId);
+    if (pointersRef.current.size === 0) paintingRef.current = false;
+  };
+
   const handleGridMove = (e: React.PointerEvent) => {
+    const prev = pointersRef.current.get(e.pointerId);
+    if (prev) {
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      // 2本指:セル上(touch-action: none)でも手動でスクロールさせる
+      if (pointersRef.current.size >= 2) {
+        const c = scrollRef.current;
+        if (c) c.scrollTop -= (e.clientY - prev.y) / pointersRef.current.size;
+        return;
+      }
+    }
     if (!paintingRef.current) return;
+    // タッチはpointerdownしたセルに暗黙キャプチャされるため、座標からセルを特定する
     const cell = document
       .elementFromPoint(e.clientX, e.clientY)
       ?.closest<HTMLElement>("[data-slot]");
     if (cell?.dataset.slot) paint(cell.dataset.slot);
   };
 
+  // スクロールバー:タッチは touch-action: pan-y による通常スクロール、
+  // マウスはドラッグで直接スクロールさせる
+  const rail = (
+    <div
+      className="flex w-8 flex-none flex-col items-center justify-center gap-2 self-stretch rounded-lg bg-white text-[#8b97ab] shadow-[inset_0_0_0_1px_#dbe2ec]"
+      style={{ touchAction: "pan-y" }}
+      onPointerDown={(e) => {
+        if (e.pointerType === "mouse") {
+          railDragRef.current = e.clientY;
+          e.currentTarget.setPointerCapture(e.pointerId);
+        }
+      }}
+      onPointerMove={(e) => {
+        if (railDragRef.current !== null && scrollRef.current) {
+          scrollRef.current.scrollTop -= e.clientY - railDragRef.current;
+          railDragRef.current = e.clientY;
+        }
+      }}
+      onPointerUp={() => {
+        railDragRef.current = null;
+      }}
+    >
+      <span className="text-sm leading-none">⇅</span>
+      <span className="text-[9px] font-semibold" style={{ writingMode: "vertical-rl" }}>
+        スクロール
+      </span>
+      <span className="text-sm leading-none">⇅</span>
+    </div>
+  );
+
   return (
     <>
-      <div className="flex-1 overflow-y-auto pb-40">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto pb-40">
         {/* ヘッダー */}
         <div className="flex items-center gap-[6px] border-b border-[#e8edf4] bg-white px-3 pb-3 pt-[14px]">
           <button
@@ -177,71 +241,80 @@ export default function AnswerScreen({
 
         <div className="px-[14px] pt-[10px]">
           <div className="mb-[10px] text-[11.5px] text-[#5b6b85]">
-            下の◯△×モードを選んで、タップ / なぞって入力。日付・時刻をタップで一括。未入力は×扱い。
+            下の◯△×モードを選んで、タップ / なぞって入力。日付・時刻をタップで一括。
+            {variant !== "c" && "右端のバーか時刻の列をなぞる(または2本指)でスクロール。"}
+            未入力は×扱い。
           </div>
 
           {variant !== "c" ? (
-            <>
-              {/* 列ヘッダー(日付):タップで列一括塗り */}
-              <div className="mb-[3px] flex gap-[3px]">
-                <div className="w-[46px] flex-none" />
-                {DAYS.map((label, d) => (
-                  <button
-                    key={label}
-                    type="button"
-                    onClick={() => fill(TIMES.map((_, t) => slotKey(d, t)))}
-                    className="h-[34px] flex-1 rounded-md bg-white p-0 text-[11px] font-semibold text-[#41506b] shadow-[inset_0_0_0_1px_#dbe2ec]"
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-              <div
-                onPointerMove={handleGridMove}
-                className="touch-none select-none"
-                style={{ WebkitTouchCallout: "none" }}
-              >
-                {TIMES.map((time, t) => (
-                  <div key={time} className="mb-[3px] flex gap-[3px]">
-                    {/* 行ヘッダー(時刻):タップで行一括塗り */}
+            <div className="flex gap-[6px]">
+              <div className="min-w-0 flex-1">
+                {/* 列ヘッダー(日付):タップで列一括塗り。スクロールしても上に固定 */}
+                <div className="sticky top-0 z-10 mb-[3px] flex gap-[3px] bg-[#f6f8fb] py-[2px]">
+                  <div className="w-[46px] flex-none" />
+                  {DAYS.map((label, d) => (
                     <button
+                      key={label}
                       type="button"
-                      onClick={() => fill(DAYS.map((_, d) => slotKey(d, t)))}
-                      className="w-[46px] flex-none rounded-md bg-white p-0 text-[11px] font-semibold text-[#41506b] shadow-[inset_0_0_0_1px_#dbe2ec]"
+                      onClick={() => fill(times.map((_, t) => slotKey(d, t)))}
+                      className="h-[34px] flex-1 rounded-md bg-white p-0 text-[11px] font-semibold text-[#41506b] shadow-[inset_0_0_0_1px_#dbe2ec]"
                     >
-                      {time}
+                      {label}
                     </button>
-                    {DAYS.map((_, d) => {
-                      const slot = slotKey(d, t);
-                      const s = status(slot);
-                      return (
-                        <div
-                          key={d}
-                          data-slot={slot}
-                          onPointerDown={(e) => handleCellDown(e, slot)}
-                          style={cellStyle(s, variant)}
-                        >
-                          {variant === "b" ? "" : GLYPH[s]}
-                        </div>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-              {variant === "b" && (
-                <div className="mt-2 flex items-center gap-[14px] text-[11px] text-[#5b6b85]">
-                  <span className="flex items-center gap-[5px]">
-                    <span className="h-[14px] w-[14px] rounded bg-[#2563eb]" />◯
-                  </span>
-                  <span className="flex items-center gap-[5px]">
-                    <span className="h-[14px] w-[14px] rounded bg-[#93c5fd]" />△
-                  </span>
-                  <span className="flex items-center gap-[5px]">
-                    <span className="h-[14px] w-[14px] rounded bg-[#e6ebf2]" />×
-                  </span>
+                  ))}
                 </div>
-              )}
-            </>
+                <div
+                  onPointerDown={handleWrapperDown}
+                  onPointerMove={handleGridMove}
+                  onPointerUp={handleWrapperEnd}
+                  onPointerCancel={handleWrapperEnd}
+                  className="touch-none select-none"
+                  style={{ WebkitTouchCallout: "none" }}
+                >
+                  {times.map((time, t) => (
+                    <div key={time} className="mb-[3px] flex gap-[3px]">
+                      {/* 行ヘッダー(時刻):タップで行一括塗り、なぞるとスクロール */}
+                      <button
+                        type="button"
+                        onClick={() => fill(DAYS.map((_, d) => slotKey(d, t)))}
+                        className="w-[46px] flex-none rounded-md bg-white p-0 text-[11px] font-semibold text-[#41506b] shadow-[inset_0_0_0_1px_#dbe2ec]"
+                        style={{ touchAction: "pan-y" }}
+                      >
+                        {time}
+                      </button>
+                      {DAYS.map((_, d) => {
+                        const slot = slotKey(d, t);
+                        const s = status(slot);
+                        return (
+                          <div
+                            key={d}
+                            data-slot={slot}
+                            onPointerDown={(e) => handleCellDown(e, slot)}
+                            style={cellStyle(s, variant)}
+                          >
+                            {variant === "b" ? "" : GLYPH[s]}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+                {variant === "b" && (
+                  <div className="mt-2 flex items-center gap-[14px] text-[11px] text-[#5b6b85]">
+                    <span className="flex items-center gap-[5px]">
+                      <span className="h-[14px] w-[14px] rounded bg-[#2563eb]" />◯
+                    </span>
+                    <span className="flex items-center gap-[5px]">
+                      <span className="h-[14px] w-[14px] rounded bg-[#93c5fd]" />△
+                    </span>
+                    <span className="flex items-center gap-[5px]">
+                      <span className="h-[14px] w-[14px] rounded bg-[#e6ebf2]" />×
+                    </span>
+                  </div>
+                )}
+              </div>
+              {rail}
+            </div>
           ) : (
             <>
               {/* 案c:日タブ+大型セルで1日ずつ入力 */}
@@ -266,26 +339,32 @@ export default function AnswerScreen({
                   </button>
                 ))}
               </div>
-              <div
-                onPointerMove={handleGridMove}
-                className="touch-none select-none"
-                style={{ WebkitTouchCallout: "none" }}
-              >
-                {TIMES.map((time, t) => {
-                  const slot = slotKey(day, t);
-                  const s = status(slot);
-                  return (
-                    <div
-                      key={time}
-                      data-slot={slot}
-                      onPointerDown={(e) => handleCellDown(e, slot)}
-                      style={rowStyleC(s)}
-                    >
-                      <span>{time}</span>
-                      <span className="text-[22px] leading-none">{GLYPH[s]}</span>
-                    </div>
-                  );
-                })}
+              <div className="flex gap-[6px]">
+                <div
+                  onPointerDown={handleWrapperDown}
+                  onPointerMove={handleGridMove}
+                  onPointerUp={handleWrapperEnd}
+                  onPointerCancel={handleWrapperEnd}
+                  className="min-w-0 flex-1 touch-none select-none"
+                  style={{ WebkitTouchCallout: "none" }}
+                >
+                  {times.map((time, t) => {
+                    const slot = slotKey(day, t);
+                    const s = status(slot);
+                    return (
+                      <div
+                        key={time}
+                        data-slot={slot}
+                        onPointerDown={(e) => handleCellDown(e, slot)}
+                        style={rowStyleC(s)}
+                      >
+                        <span>{time}</span>
+                        <span className="text-[22px] leading-none">{GLYPH[s]}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {rail}
               </div>
             </>
           )}

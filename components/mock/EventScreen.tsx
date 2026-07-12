@@ -2,7 +2,6 @@
 
 import {
   DAYS,
-  TIMES,
   PEOPLE,
   SHARE_URL,
   type Answers,
@@ -12,6 +11,7 @@ import {
 } from "./data";
 
 type Props = {
+  times: string[];
   submitted: boolean;
   savedAnswers: Answers;
   onGoAnswer: () => void;
@@ -22,7 +22,7 @@ type Props = {
  * ヒートマップ:◯=2点/△=1点で集計し、白→青のグラデーション表示。
  * 満点(全員◯)のスロットは濃い枠で強調。セルには◯人数を併記。
  */
-export default function EventScreen({ submitted, savedAnswers, onGoAnswer }: Props) {
+export default function EventScreen({ times, submitted, savedAnswers, onGoAnswer }: Props) {
   const n = PEOPLE.length + (submitted ? 1 : 0);
   const max = n * 2;
 
@@ -91,7 +91,7 @@ export default function EventScreen({ submitted, savedAnswers, onGoAnswer }: Pro
               </div>
             ))}
           </div>
-          {TIMES.map((time, t) => (
+          {times.map((time, t) => (
             <div key={time} className="mb-[3px] flex gap-[3px]">
               <div className="flex w-[46px] flex-none items-center justify-center text-[11px] font-semibold text-[#41506b]">
                 {time}

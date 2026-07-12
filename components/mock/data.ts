@@ -2,7 +2,15 @@
 // 4日 × 10:00〜16:00・60分刻み(28スロット)+ 既存回答者5名
 
 export const DAYS = ["7/20(月)", "7/21(火)", "7/22(水)", "7/23(木)"];
-export const TIMES = ["10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00"];
+
+/** 10:00〜16:00 を stepMinutes 刻みで生成する(16:00を含む)。60分→7行、30分→13行 */
+export function makeTimes(stepMinutes: number): string[] {
+  const out: string[] = [];
+  for (let m = 10 * 60; m <= 16 * 60; m += stepMinutes) {
+    out.push(`${Math.floor(m / 60)}:${String(m % 60).padStart(2, "0")}`);
+  }
+  return out;
+}
 export const PEOPLE = ["さとう", "たなか", "すずき", "いのうえ", "かとう"];
 export const SHARE_URL = "https://wasa-chosei.app/e/Kx7PbQ2wNz4RtY8mLdC3f";
 
