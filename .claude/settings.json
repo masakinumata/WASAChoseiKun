@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(SRC=\"C:/Users/numat/AppData/Local/Temp/claude/c--Users-numat-WASAChoseiKun/e8c98301-e56e-48cb-abf5-b583f23b4094/scratchpad/wasa-scaffold\"; ls -A \"$SRC\" && cp -r \"$SRC\"/. \"C:/Users/numat/WASAChoseiKun/\" && ls -A \"C:/Users/numat/WASAChoseiKun\")",
+      "Bash(npm install *)",
+      "Bash(npm run *)"
+    ]
+  }
+}
