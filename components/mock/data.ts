@@ -3,6 +3,17 @@
 
 export const DAYS = ["7/20(月)", "7/21(火)", "7/22(水)", "7/23(木)"];
 
+/** PC(lg以上)レイアウト用:7日分に拡大(60分刻みで49スロット) */
+export const PC_DAYS = [
+  "7/20(月)",
+  "7/21(火)",
+  "7/22(水)",
+  "7/23(木)",
+  "7/24(金)",
+  "7/25(土)",
+  "7/26(日)",
+];
+
 /** 10:00〜16:00 を stepMinutes 刻みで生成する(16:00を含む)。60分→7行、30分→13行 */
 export function makeTimes(stepMinutes: number): string[] {
   const out: string[] = [];
