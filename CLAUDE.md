@@ -2,6 +2,8 @@
 
 WASA(早稲田大学宇宙航空研究会)の班ミーティング用日程調整Webアプリ。
 
+**セッション開始時は [docs/progress.md](docs/progress.md) を読んで現在のフェーズと進捗を把握すること。**
+
 ## 最重要ルール
 
 1. **[docs/spec.md](docs/spec.md) が唯一の仕様源(Single Source of Truth)である。**

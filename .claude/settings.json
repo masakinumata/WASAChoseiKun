@@ -6,7 +6,8 @@
       "Bash(npm run *)",
       "Bash(git add *)",
       "Bash(git push *)",
-      "Bash(git commit -m '.claude/settings.json の許可設定を更新 *)"
+      "Bash(git commit -m '.claude/settings.json の許可設定を更新 *)",
+      "Bash(git commit -m 'Phase 0完了を記録: docs/progress.md 追加、CLAUDE.mdに進捗ログへの導線を追加 *)"
     ]
   }
 }
