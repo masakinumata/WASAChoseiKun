@@ -5,6 +5,12 @@ export default function Home() {
       <p className="text-center text-gray-600">
         WASAの班ミーティング調整用の日程調整アプリ(開発中)
       </p>
+      <a
+        href="/mock"
+        className="rounded-lg bg-green-600 px-6 py-3 font-semibold text-white active:bg-green-700"
+      >
+        グリッドUIモックを試す
+      </a>
     </main>
   );
 }

@@ -6,7 +6,10 @@
 ## 現在の状態
 
 - **完了フェーズ**: Phase 0(リポジトリ整備)
-- **次のフェーズ**: Phase 1(グリッドUIモック)
+- **進行中**: Phase 1(グリッドUIモック)— 実装済み、**実機(スマホ・LINE内ブラウザ)検証待ち**
+  - [components/AnswerGrid.tsx](../components/AnswerGrid.tsx): ◯△×モード切替+Pointer Eventsドラッグ塗り、行・列ヘッダー一括塗り、stickyヘッダー、2本指スクロール
+  - [app/mock/page.tsx](../app/mock/page.tsx): `/mock` にサンプル候補(7日×9:00〜21:00・30分刻み)で表示。トップページからリンクあり
+  - 検証で問題なければ Phase 1 完了記録を書き、WASAメンバー数人に触ってもらう
 
 ---
 
