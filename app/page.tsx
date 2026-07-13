@@ -7,7 +7,7 @@ export default function Home() {
       </p>
       <a
         href="/mock"
-        className="rounded-lg bg-green-600 px-6 py-3 font-semibold text-white active:bg-green-700"
+        className="rounded-lg bg-brand px-6 py-3 font-semibold text-white active:bg-brand-strong"
       >
         グリッドUIモックを試す
       </a>

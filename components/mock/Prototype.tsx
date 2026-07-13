@@ -28,10 +28,16 @@ export default function Prototype() {
   const [savedAnswers, setSavedAnswers] = useState<Answers>({});
   const [submitted, setSubmitted] = useState(false);
 
+  // 上部バーのタブボタン(選択中=青)
+  const tabClass = (active: boolean) =>
+    `rounded-md px-2 py-1 text-[11px] font-semibold ${
+      active ? "bg-brand text-white" : "bg-white/10 text-white/70"
+    }`;
+
   return (
-    <div className="flex h-dvh flex-col bg-[#f6f8fb] text-[#1a2333]">
+    <div className="flex h-dvh flex-col bg-page text-ink">
       {/* プロトタイプ用:回答UIの案切り替え(本実装では削除する) */}
-      <div className="flex items-center gap-1 border-b border-[#e3e8f0] bg-[#1a2333] px-3 py-2">
+      <div className="flex items-center gap-1 border-b border-edge bg-ink px-3 py-2">
         {/* 回答UI比較タブはモバイルのみ(PCは1a採用のPCレイアウト固定) */}
         <div className="flex items-center gap-1 lg:hidden">
           <span className="mr-1 text-[10px] font-semibold text-white/60">
@@ -42,12 +48,7 @@ export default function Prototype() {
               key={v.key}
               type="button"
               onClick={() => setVariant(v.key)}
-              className="rounded-md px-2 py-1 text-[11px] font-semibold"
-              style={
-                variant === v.key
-                  ? { background: "#2563eb", color: "#fff" }
-                  : { background: "rgba(255,255,255,.1)", color: "rgba(255,255,255,.7)" }
-              }
+              className={tabClass(variant === v.key)}
             >
               {v.id} {v.name}
             </button>
@@ -70,12 +71,7 @@ export default function Prototype() {
                 setSubmitted(false);
                 setDay(0);
               }}
-              className="rounded-md px-2 py-1 text-[11px] font-semibold"
-              style={
-                step === s
-                  ? { background: "#2563eb", color: "#fff" }
-                  : { background: "rgba(255,255,255,.1)", color: "rgba(255,255,255,.7)" }
-              }
+              className={tabClass(step === s)}
             >
               {s}分
             </button>

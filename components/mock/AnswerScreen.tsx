@@ -1,70 +1,44 @@
 "use client";
 
+import { useEffect, useRef, type Dispatch, type SetStateAction } from "react";
 import {
-  useEffect,
-  useRef,
-  type CSSProperties,
-  type Dispatch,
-  type SetStateAction,
-} from "react";
-import { DAYS, GLYPH, type Answers, type AnswerStatus, slotKey } from "./data";
+  DAYS,
+  GLYPH,
+  MODES,
+  type Answers,
+  type AnswerStatus,
+  slotKey,
+} from "./data";
 
 /** 回答グリッドの3案(1a 記号グリッド / 1b ペイント式 / 1c 1日ずつ入力) */
 export type Variant = "a" | "b" | "c";
 
-const MODES: { key: AnswerStatus; glyph: string; label: string }[] = [
-  { key: "ok", glyph: "◯", label: "参加できる" },
-  { key: "maybe", glyph: "△", label: "調整すれば" },
-  { key: "none", glyph: "×", label: "できない" },
-];
+/** 案a(記号グリッド)のセル */
+const CELL_A = {
+  base: "flex h-11 flex-1 cursor-pointer items-center justify-center rounded-lg text-[17px] font-bold",
+  ok: "bg-brand text-white",
+  maybe: "bg-maybe-bg text-brand-strong",
+  none: "bg-none-bg text-none-text",
+} as const;
 
-/** 案a/bのセルスタイル(デザインの ansStyle 準拠) */
-function cellStyle(status: AnswerStatus, variant: Variant): CSSProperties {
-  const base: CSSProperties = {
-    flex: 1,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 8,
-    fontWeight: 700,
-    cursor: "pointer",
-  };
-  const colors: Record<AnswerStatus, CSSProperties> = {
-    ok: { background: "#2563eb", color: "#fff" },
-    maybe: { background: "#dbeafe", color: "#1d4ed8" },
-    none: { background: "#edf1f6", color: "#b3bdcc" },
-  };
-  if (variant === "b") {
-    // 色のみのスリムセル(記号なし)
-    colors.maybe = { background: "#93c5fd", color: "#93c5fd" };
-    colors.none = { background: "#e6ebf2", color: "#e6ebf2" };
-    colors.ok = { background: "#2563eb", color: "#2563eb" };
-    return { ...base, height: 32, fontSize: 0, borderRadius: 5, ...colors[status] };
-  }
-  return { ...base, height: 44, fontSize: 17, ...colors[status] };
-}
+/** 案b(ペイント式)のセル:色のみ・記号なし */
+const CELL_B = {
+  base: "h-8 flex-1 cursor-pointer rounded-[5px]",
+  ok: "bg-brand",
+  maybe: "bg-maybe-solid",
+  none: "bg-none-solid",
+} as const;
 
-/** 案cの行スタイル(デザインの rowStyleC 準拠) */
-function rowStyleC(status: AnswerStatus): CSSProperties {
-  const colors: Record<AnswerStatus, CSSProperties> = {
-    ok: { background: "#2563eb", color: "#fff" },
-    maybe: { background: "#dbeafe", color: "#1d4ed8" },
-    none: { background: "#fff", color: "#8b97ab", boxShadow: "inset 0 0 0 1px #dbe2ec" },
-  };
-  return {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    padding: "0 18px",
-    height: 54,
-    borderRadius: 12,
-    marginBottom: 8,
-    fontWeight: 700,
-    fontSize: 15.5,
-    cursor: "pointer",
-    ...colors[status],
-  };
-}
+/** 案c(1日ずつ)の行 */
+const ROW_C = {
+  base: "mb-2 flex h-[54px] cursor-pointer items-center justify-between rounded-xl px-[18px] text-[15.5px] font-bold",
+  ok: "bg-brand text-white",
+  maybe: "bg-maybe-bg text-brand-strong",
+  none: "bg-white text-faint inset-line",
+} as const;
+
+/** 行・列ヘッダー(白ボタン)の共通クラス */
+const HEAD_BTN = "rounded-md bg-white p-0 text-[11px] font-semibold text-head inset-line";
 
 type Props = {
   variant: Variant;
@@ -80,7 +54,7 @@ type Props = {
 };
 
 /**
- * 回答画面(spec §2.4)。モードを選んでタップ / なぞり(ドラッグ)で一括塗り。
+ * 回答画面(モバイル・spec §2.4)。モードを選んでタップ / なぞり(ドラッグ)で一括塗り。
  * 日付・時刻ヘッダーのタップで行・列一括。未入力は×扱い。
  *
  * セル上は touch-action: none のためドラッグ中に画面がスクロールしない。
@@ -175,12 +149,19 @@ export default function AnswerScreen({
     if (cell?.dataset.slot) paint(cell.dataset.slot);
   };
 
+  // グリッド用の共通Pointerハンドラ(塗り+2本指スクロール)
+  const gridHandlers = {
+    onPointerDown: handleWrapperDown,
+    onPointerMove: handleGridMove,
+    onPointerUp: handleWrapperEnd,
+    onPointerCancel: handleWrapperEnd,
+  };
+
   // スクロールバー:タッチは touch-action: pan-y による通常スクロール、
   // マウスはドラッグで直接スクロールさせる
   const rail = (
     <div
-      className="flex w-8 flex-none flex-col items-center justify-center gap-2 self-stretch rounded-lg bg-white text-[#8b97ab] shadow-[inset_0_0_0_1px_#dbe2ec]"
-      style={{ touchAction: "pan-y" }}
+      className="flex w-8 flex-none touch-pan-y flex-col items-center justify-center gap-2 self-stretch rounded-lg bg-white text-faint inset-line"
       onPointerDown={(e) => {
         if (e.pointerType === "mouse") {
           railDragRef.current = e.clientY;
@@ -198,7 +179,7 @@ export default function AnswerScreen({
       }}
     >
       <span className="text-sm leading-none">⇅</span>
-      <span className="text-[9px] font-semibold" style={{ writingMode: "vertical-rl" }}>
+      <span className="text-[9px] font-semibold [writing-mode:vertical-rl]">
         スクロール
       </span>
       <span className="text-sm leading-none">⇅</span>
@@ -209,11 +190,11 @@ export default function AnswerScreen({
     <>
       <div ref={scrollRef} className="flex-1 overflow-y-auto pb-40">
         {/* ヘッダー */}
-        <div className="flex items-center gap-[6px] border-b border-[#e8edf4] bg-white px-3 pb-3 pt-[14px]">
+        <div className="flex items-center gap-[6px] border-b border-hairline bg-white px-3 pb-3 pt-[14px]">
           <button
             type="button"
             onClick={onBack}
-            className="h-9 w-9 rounded-[10px] bg-[#f1f4f9] text-lg font-bold text-[#41506b]"
+            className="h-9 w-9 rounded-[10px] bg-field text-lg font-bold text-head"
           >
             ‹
           </button>
@@ -222,25 +203,25 @@ export default function AnswerScreen({
 
         {/* 名前・パスワード(モックのため送信では未使用) */}
         <div className="flex gap-2 px-[14px] pb-1 pt-[14px]">
-          <label className="flex flex-1 flex-col gap-1 text-[11px] font-semibold text-[#5b6b85]">
+          <label className="flex flex-1 flex-col gap-1 text-[11px] font-semibold text-sub">
             名前
             <input
               placeholder="やまだ"
-              className="h-10 rounded-[10px] bg-white px-3 text-sm text-[#1a2333] shadow-[inset_0_0_0_1px_#dbe2ec] outline-[#2563eb]"
+              className="h-10 rounded-[10px] bg-white px-3 text-sm text-ink inset-line outline-brand"
             />
           </label>
-          <label className="flex flex-1 flex-col gap-1 text-[11px] font-semibold text-[#5b6b85]">
+          <label className="flex flex-1 flex-col gap-1 text-[11px] font-semibold text-sub">
             回答用パスワード
             <input
               type="password"
               placeholder="編集に使います"
-              className="h-10 rounded-[10px] bg-white px-3 text-sm text-[#1a2333] shadow-[inset_0_0_0_1px_#dbe2ec] outline-[#2563eb]"
+              className="h-10 rounded-[10px] bg-white px-3 text-sm text-ink inset-line outline-brand"
             />
           </label>
         </div>
 
         <div className="px-[14px] pt-[10px]">
-          <div className="mb-[10px] text-[11.5px] text-[#5b6b85]">
+          <div className="mb-[10px] text-[11.5px] text-sub">
             下の◯△×モードを選んで、タップ / なぞって入力。日付・時刻をタップで一括。
             {variant !== "c" && "右端のバーか時刻の列をなぞる(または2本指)でスクロール。"}
             未入力は×扱い。
@@ -250,26 +231,22 @@ export default function AnswerScreen({
             <div className="flex gap-[6px]">
               <div className="min-w-0 flex-1">
                 {/* 列ヘッダー(日付):タップで列一括塗り。スクロールしても上に固定 */}
-                <div className="sticky top-0 z-10 mb-[3px] flex gap-[3px] bg-[#f6f8fb] py-[2px]">
+                <div className="sticky top-0 z-10 mb-[3px] flex gap-[3px] bg-page py-[2px]">
                   <div className="w-[46px] flex-none" />
                   {DAYS.map((label, d) => (
                     <button
                       key={label}
                       type="button"
                       onClick={() => fill(times.map((_, t) => slotKey(d, t)))}
-                      className="h-[34px] flex-1 rounded-md bg-white p-0 text-[11px] font-semibold text-[#41506b] shadow-[inset_0_0_0_1px_#dbe2ec]"
+                      className={`h-[34px] flex-1 ${HEAD_BTN}`}
                     >
                       {label}
                     </button>
                   ))}
                 </div>
                 <div
-                  onPointerDown={handleWrapperDown}
-                  onPointerMove={handleGridMove}
-                  onPointerUp={handleWrapperEnd}
-                  onPointerCancel={handleWrapperEnd}
-                  className="touch-none select-none"
-                  style={{ WebkitTouchCallout: "none" }}
+                  {...gridHandlers}
+                  className="touch-none select-none [-webkit-touch-callout:none]"
                 >
                   {times.map((time, t) => (
                     <div key={time} className="mb-[3px] flex gap-[3px]">
@@ -277,20 +254,20 @@ export default function AnswerScreen({
                       <button
                         type="button"
                         onClick={() => fill(DAYS.map((_, d) => slotKey(d, t)))}
-                        className="w-[46px] flex-none rounded-md bg-white p-0 text-[11px] font-semibold text-[#41506b] shadow-[inset_0_0_0_1px_#dbe2ec]"
-                        style={{ touchAction: "pan-y" }}
+                        className={`w-[46px] flex-none touch-pan-y ${HEAD_BTN}`}
                       >
                         {time}
                       </button>
                       {DAYS.map((_, d) => {
                         const slot = slotKey(d, t);
                         const s = status(slot);
+                        const cell = variant === "b" ? CELL_B : CELL_A;
                         return (
                           <div
                             key={d}
                             data-slot={slot}
                             onPointerDown={(e) => handleCellDown(e, slot)}
-                            style={cellStyle(s, variant)}
+                            className={`${cell.base} ${cell[s]}`}
                           >
                             {variant === "b" ? "" : GLYPH[s]}
                           </div>
@@ -300,15 +277,15 @@ export default function AnswerScreen({
                   ))}
                 </div>
                 {variant === "b" && (
-                  <div className="mt-2 flex items-center gap-[14px] text-[11px] text-[#5b6b85]">
+                  <div className="mt-2 flex items-center gap-[14px] text-[11px] text-sub">
                     <span className="flex items-center gap-[5px]">
-                      <span className="h-[14px] w-[14px] rounded bg-[#2563eb]" />◯
+                      <span className="h-[14px] w-[14px] rounded bg-brand" />◯
                     </span>
                     <span className="flex items-center gap-[5px]">
-                      <span className="h-[14px] w-[14px] rounded bg-[#93c5fd]" />△
+                      <span className="h-[14px] w-[14px] rounded bg-maybe-solid" />△
                     </span>
                     <span className="flex items-center gap-[5px]">
-                      <span className="h-[14px] w-[14px] rounded bg-[#e6ebf2]" />×
+                      <span className="h-[14px] w-[14px] rounded bg-none-solid" />×
                     </span>
                   </div>
                 )}
@@ -324,16 +301,9 @@ export default function AnswerScreen({
                     key={label}
                     type="button"
                     onClick={() => onDayChange(i)}
-                    className="h-[38px] flex-1 rounded-[9px] p-0 text-xs font-semibold"
-                    style={
-                      i === day
-                        ? { background: "#2563eb", color: "#fff" }
-                        : {
-                            background: "#fff",
-                            color: "#41506b",
-                            boxShadow: "inset 0 0 0 1px #dbe2ec",
-                          }
-                    }
+                    className={`h-[38px] flex-1 rounded-[9px] p-0 text-xs font-semibold ${
+                      i === day ? "bg-brand text-white" : "bg-white text-head inset-line"
+                    }`}
                   >
                     {label}
                   </button>
@@ -341,12 +311,8 @@ export default function AnswerScreen({
               </div>
               <div className="flex gap-[6px]">
                 <div
-                  onPointerDown={handleWrapperDown}
-                  onPointerMove={handleGridMove}
-                  onPointerUp={handleWrapperEnd}
-                  onPointerCancel={handleWrapperEnd}
-                  className="min-w-0 flex-1 touch-none select-none"
-                  style={{ WebkitTouchCallout: "none" }}
+                  {...gridHandlers}
+                  className="min-w-0 flex-1 touch-none select-none [-webkit-touch-callout:none]"
                 >
                   {times.map((time, t) => {
                     const slot = slotKey(day, t);
@@ -356,7 +322,7 @@ export default function AnswerScreen({
                         key={time}
                         data-slot={slot}
                         onPointerDown={(e) => handleCellDown(e, slot)}
-                        style={rowStyleC(s)}
+                        className={`${ROW_C.base} ${ROW_C[s]}`}
                       >
                         <span>{time}</span>
                         <span className="text-[22px] leading-none">{GLYPH[s]}</span>
@@ -372,7 +338,7 @@ export default function AnswerScreen({
       </div>
 
       {/* モード選択+送信(下部固定) */}
-      <div className="border-t border-[#e3e8f0] bg-white px-[14px] pb-[max(1rem,env(safe-area-inset-bottom))] pt-[10px]">
+      <div className="border-t border-edge bg-white px-[14px] pb-[max(1rem,env(safe-area-inset-bottom))] pt-[10px]">
         <div className="mb-[10px] flex gap-2">
           {MODES.map((m) => (
             <button
@@ -380,16 +346,9 @@ export default function AnswerScreen({
               type="button"
               onClick={() => onModeChange(m.key)}
               aria-pressed={mode === m.key}
-              className="flex flex-1 flex-col items-center gap-[3px] rounded-xl pb-[7px] pt-[9px] font-bold"
-              style={
-                mode === m.key
-                  ? {
-                      background: "#2563eb",
-                      color: "#fff",
-                      boxShadow: "0 2px 6px rgba(37,99,235,.35)",
-                    }
-                  : { background: "#f1f4f9", color: "#5b6b85" }
-              }
+              className={`flex flex-1 flex-col items-center gap-[3px] rounded-xl pb-[7px] pt-[9px] font-bold ${
+                mode === m.key ? "bg-brand text-white glow-brand" : "bg-field text-sub"
+              }`}
             >
               <span className="text-[21px] leading-[1.1]">{m.glyph}</span>
               <span className="text-[10px]">{m.label}</span>
@@ -399,7 +358,7 @@ export default function AnswerScreen({
         <button
           type="button"
           onClick={onSubmit}
-          className="h-12 w-full rounded-xl bg-[#2563eb] text-[15px] font-bold text-white shadow-[0_2px_8px_rgba(37,99,235,.3)]"
+          className="h-12 w-full rounded-xl bg-brand text-[15px] font-bold text-white glow-brand"
         >
           送信して集計を見る
         </button>

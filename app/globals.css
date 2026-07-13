@@ -12,6 +12,50 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* デザイントークン(claude.ai/design のプロトタイプ準拠)
+   例: bg-brand / text-sub / border-hairline のように使う */
+@theme {
+  /* ブランドカラー(青) */
+  --color-brand: #2563eb;        /* 基調色・◯セル */
+  --color-brand-strong: #1d4ed8; /* △セルの文字 */
+  --color-brand-deep: #1e3a8a;   /* 満点スロットの枠 */
+  --color-brand-tint: #e4ecfb;   /* コピーボタン背景 */
+
+  /* テキスト */
+  --color-ink: #1a2333;   /* 本文 */
+  --color-head: #41506b;  /* 見出し・ヘッダーセル */
+  --color-sub: #5b6b85;   /* 補足 */
+  --color-faint: #8b97ab; /* 注記 */
+
+  /* 面・線 */
+  --color-page: #f6f8fb;     /* ページ背景 */
+  --color-field: #f1f4f9;    /* 入力欄・戻るボタン背景 */
+  --color-line: #dbe2ec;     /* 内側1px縁 */
+  --color-hairline: #e8edf4; /* ヘッダー下罫線 */
+  --color-edge: #e3e8f0;     /* カード縁・固定バー罫線 */
+
+  /* 回答セル(◯は brand を使う) */
+  --color-maybe-bg: #dbeafe;    /* △セル背景(1a/1c) */
+  --color-maybe-solid: #93c5fd; /* △セル(1bペイント式) */
+  --color-none-bg: #edf1f6;     /* ×セル背景(1a) */
+  --color-none-solid: #e6ebf2;  /* ×セル(1bペイント式) */
+  --color-none-text: #b3bdcc;   /* ×セルの記号 */
+}
+
+/* 頻出シャドウのユーティリティ */
+@utility inset-line {
+  box-shadow: inset 0 0 0 1px var(--color-line); /* 内側1pxの縁 */
+}
+@utility inset-edge {
+  box-shadow: inset 0 0 0 1px var(--color-edge); /* カードの縁 */
+}
+@utility inset-brand {
+  box-shadow: inset 0 0 0 2px var(--color-brand); /* ホバー時の青枠 */
+}
+@utility glow-brand {
+  box-shadow: 0 2px 8px rgb(37 99 235 / 0.3); /* 青ボタンの影 */
+}
+
 @media (prefers-color-scheme: dark) {
   :root {
     --background: #0a0a0a;

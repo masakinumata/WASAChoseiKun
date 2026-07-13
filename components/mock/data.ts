@@ -32,7 +32,29 @@ export type Answers = Record<string, "ok" | "maybe">;
 
 export const GLYPH: Record<AnswerStatus, string> = { ok: "◯", maybe: "△", none: "×" };
 
+/** ◯△×モード選択ボタンの定義(モバイル・PC共通) */
+export const MODES: { key: AnswerStatus; glyph: string; label: string }[] = [
+  { key: "ok", glyph: "◯", label: "参加できる" },
+  { key: "maybe", glyph: "△", label: "調整すれば" },
+  { key: "none", glyph: "×", label: "できない" },
+];
+
 export const slotKey = (d: number, t: number) => `${d}-${t}`;
+
+/** 既存回答者5名+extra(自分の回答)を合算した (◯数, △数) を返す */
+export function countAnswers(d: number, t: number, extra: Answers | null) {
+  let ok = 0;
+  let maybe = 0;
+  PEOPLE.forEach((_, i) => {
+    const s = seed(i, d, t);
+    if (s === "ok") ok++;
+    else if (s === "maybe") maybe++;
+  });
+  const s = extra?.[slotKey(d, t)];
+  if (s === "ok") ok++;
+  else if (s === "maybe") maybe++;
+  return { ok, maybe };
+}
 
 /** 既存回答者iの (日d, 時刻t) に対するサンプル回答を決定的に生成する */
 export function seed(i: number, d: number, t: number): AnswerStatus {
